@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="IEA game section login for student, editor and admin panels.">
+  <title>IEA Games Login</title>
+  <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="stylesheet" href="assets/css/game-style.css">
+  <link rel="stylesheet" href="assets/css/merged-controls.css">
+</head>
+<body data-page="login">
+  <div class="loader hide"><div class="loader-inner"><div class="loader-mark"><b>IEA</b></div><p>Loading portal</p><div class="loader-bar"><i></i></div></div></div>
+  <div class="noise"></div><div class="aurora a1"></div><div class="aurora a2"></div><div class="cursor-glow"></div>
+  <div id="nav-root"></div>
+  <main id="app" class="page">
+    <section class="login-wrap clear-login-wrap">
+      <div class="card login-card clear-login-card" style="margin:0 auto">
+        <p class="eyebrow">Login / Open Portal</p>
+        <h1 class="display">Select your role, then enter your panel.</h1>
+        <p class="lead" id="roleHelp">Students play assigned games and track their progress.</p>
+
+        <div class="role-row clear-role-row" id="roleRow">
+          <div class="role-pick active" data-role="student"><b>Student</b><small>Play games</small></div>
+          <div class="role-pick" data-role="editor"><b>Editor</b><small>Create/edit games</small></div>
+          <div class="role-pick" data-role="admin"><b>Admin</b><small>Manage all</small></div>
+        </div>
+
+        <form class="form" id="loginForm" style="margin-top:20px">
+          <div class="grid grid-2">
+            <div class="field"><label>Email</label><input class="input" name="email" value="student@iea.in" autocomplete="username"></div>
+            <div class="field"><label>Password</label><input class="input" type="password" name="password" value="student123" autocomplete="current-password"></div>
+          </div>
+          <button class="btn btn-primary btn-xl" type="submit" id="loginSubmit">Login and Open Student Panel</button>
+          <button class="btn" type="button" id="resetAccounts">Reset demo accounts if login does not work</button>
+        </form>
+
+        <div class="grid grid-3" style="margin-top:18px">
+          <button class="btn quick-login" data-quick-role="student">Demo Student</button>
+          <button class="btn quick-login" data-quick-role="editor">Demo Editor</button>
+          <button class="btn quick-login" data-quick-role="admin">Demo Admin</button>
+        </div>
+
+        <div class="card demo-login-card" style="margin-top:18px">
+          <p><b>Demo login details</b></p>
+          <p class="lead" style="font-size:14px">Student: student@iea.in / student123<br>Editor: editor@iea.in / editor123<br>Admin: admin@iea.in / admin123<br>Anshu Admin: clickansh@gmail.com / admin123</p>
+        </div>
+        <p class="fallback-note" style="margin-top:14px">After login, students open the Student Panel to play assigned games. Editors can create, edit and delete games. Admins can manage all games, students, groups, media, visibility and reports.</p>
+      </div>
+    </section>
+  </main>
+  <footer class="footer"><div class="container footer-grid"><span>© 2026 International English Academy India · Game Section</span><span>Student · Editor · Admin Portal</span></div></footer>
+  <div id="toast" class="toast"></div>
+
+  <script src="assets/js/iea-sheets-api.js"></script>
+<script src="assets/js/game-data.js"></script>
+  <script src="assets/js/game-app.js"></script>
+  <script>
+  (function(){
+    const DB_KEY='iea_html_game_section_db_v4_role_panels';
+    const creds={
+      student:{id:'u-student',name:'Demo Student',email:'student@iea.in',password:'student123',role:'student'},
+      editor:{id:'u-editor',name:'IEA Editor',email:'editor@iea.in',password:'editor123',role:'editor'},
+      admin:{id:'u-admin',name:'IEA Admin',email:'admin@iea.in',password:'admin123',role:'admin'},
+      anshu:{id:'u-admin',name:'Anshu Agarwal',email:'clickansh@gmail.com',password:'admin123',role:'admin'}
+    };
+    const roleText={
+      student:'Students play assigned games and track their progress.',
+      editor:'Editors create, edit and delete games and manage questions/media.',
+      admin:'Admins manage all games, students, groups, visibility and reports.'
+    };
+    function $(s,r=document){return r.querySelector(s)}
+    function $$(s,r=document){return Array.from(r.querySelectorAll(s))}
+    function toast(msg){let t=$('#toast'); if(!t){alert(msg); return} t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2300)}
+    function ensureSeed(){
+      try{
+        if(!localStorage.getItem(DB_KEY) && window.IEA_SEED){
+          const seed=JSON.parse(JSON.stringify(window.IEA_SEED));
+          seed.groups=seed.groups||[
+            {id:'grp-a1',name:'A1 Elementary',level:'A1'},
+            {id:'grp-a2',name:'A2 Pre-Intermediate',level:'A2'},
+            {id:'grp-b1',name:'B1 Intermediate',level:'B1'},
+            {id:'grp-b2',name:'B2 Higher Intermediate',level:'B2'},
+            {id:'grp-club',name:'Club Members',level:'Mixed'}
+          ];
+          seed.media=seed.media||[];
+          seed.users=seed.users||[];
+          if(!seed.users.some(u=>String(u.email).toLowerCase()==='clickansh@gmail.com')){
+            seed.users.push({id:'u-admin',name:'Anshu Agarwal',email:'clickansh@gmail.com',password:'admin123',role:'admin',level:'C2',avatar:'A'});
+          }
+          localStorage.setItem(DB_KEY,JSON.stringify(seed));
+        }
+      }catch(e){}
+    }
+    function getUser(email,pass){
+      email=String(email||'').trim().toLowerCase();
+      const staticUser=Object.values(creds).find(u=>u.email.toLowerCase()===email && u.password===pass);
+      if(staticUser) return staticUser;
+      try{
+        const db=JSON.parse(localStorage.getItem(DB_KEY)||'{}');
+        return (db.users||[]).find(u=>String(u.email).toLowerCase()===email && String(u.password)===String(pass));
+      }catch(e){ return null }
+    }
+    function doLogin(role,email,pass){
+      ensureSeed();
+      const u=getUser(email,pass);
+      if(!u){toast('Wrong email or password. Use the demo buttons or reset demo accounts.');return}
+      localStorage.setItem('iea_current_user',JSON.stringify({id:u.id,name:u.name,email:u.email,role:u.role}));
+      toast('Logged in successfully. Opening '+u.role+' panel...');
+      setTimeout(()=>{location.href=u.role==='student'?'student.html':u.role==='editor'?'editor.html':'admin.html'},350);
+    }
+    function applyRole(role){
+      const c=creds[role]||creds.student;
+      $$('.role-pick').forEach(x=>x.classList.toggle('active',x.dataset.role===role));
+      const f=$('#loginForm'); if(f){f.email.value=c.email; f.password.value=c.password}
+      const h=$('#roleHelp'); if(h)h.textContent=roleText[role]||roleText.student;
+      const b=$('#loginSubmit'); if(b)b.textContent='Login and Open '+role.charAt(0).toUpperCase()+role.slice(1)+' Panel';
+    }
+    function wire(){
+      ensureSeed();
+      const params=new URLSearchParams(location.search);
+      applyRole(params.get('role')||'student');
+      document.addEventListener('click',function(e){
+        const rolePick=e.target.closest('.role-pick[data-role]');
+        if(rolePick){applyRole(rolePick.dataset.role)}
+        const q=e.target.closest('.quick-login[data-quick-role]');
+        if(q){const c=creds[q.dataset.quickRole]; doLogin(q.dataset.quickRole,c.email,c.password)}
+        if(e.target && e.target.id==='resetAccounts'){
+          localStorage.removeItem(DB_KEY); localStorage.removeItem('iea_current_user'); ensureSeed(); toast('Demo accounts restored.'); setTimeout(()=>location.reload(),500);
+        }
+      });
+      document.addEventListener('submit',function(e){
+        if(e.target && e.target.id==='loginForm'){
+          e.preventDefault();
+          const role=$('.role-pick.active')?.dataset.role||'student';
+          doLogin(role,e.target.email.value,e.target.password.value);
+        }
+      });
+      setTimeout(()=>{ $$('.reveal').forEach(x=>x.classList.add('in')); const loader=document.querySelector('.loader'); if(loader) loader.style.display='none'; },100);
+    }
+    if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',wire); else wire();
+  })();
+  </script>
+</body>
+</html>
